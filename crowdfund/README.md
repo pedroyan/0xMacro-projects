@@ -112,7 +112,7 @@ function claimBadges() external {
 
 ```
 
-### Benifits of approach
+### Benefits of approach
 
 - Simple to implement
 - Minimal changes to existing logic

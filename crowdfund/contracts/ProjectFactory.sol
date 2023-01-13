@@ -1,12 +1,38 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity 0.8.17;
+import "./Project.sol";
 
+error InvalidFundingGoal();
+
+/**
+ * @title ProjectFactory
+ * @author Pedro Yan Ornelas
+ * @notice This contract is responsible for creating new projects and keeping track of them in the
+ * crowdfundr dapp.
+ */
 contract ProjectFactory {
-    event ProjectCreated(address newProject); // Note: you should add additional data fields in this event
+    /// @notice Projects created by this factory
+    Project[] public projects;
 
-    function create() external {
-        // TODO: implement me!
+    /// @notice Emitted when a new project is created
+    event ProjectCreated(address newProject, address projectCreator, uint256 fundingGoal);
 
-        emit ProjectCreated(address(0x0)); // TODO: replace me with the actual Project's address
+    /**
+     * @notice Creates a new project and tracks it in the projects array
+     * @param _fundingGoal The funding goal for the project. Cannot be lower than 0.01 ether.
+     */
+    function create(uint256 _fundingGoal) external {
+        if(_fundingGoal < 0.01 ether) {
+            revert InvalidFundingGoal();
+        }
+
+        Project project = new Project(msg.sender, _fundingGoal);
+        projects.push(project);
+
+        emit ProjectCreated(address(project), msg.sender, _fundingGoal);
+    }
+
+    function getProjects() external view returns (Project[] memory) {
+        return projects;
     }
 }

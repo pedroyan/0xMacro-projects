@@ -61,10 +61,10 @@ The goal here is to help you think through the possible edge cases of all your c
 
 | File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Lines |
 | ------------------ | ------- | -------- | ------- | ------- | --------------- |
-| contracts/         | 100     | 97.22    | 100     | 100     |                 |
-| Project.sol        | 100     | 97.06    | 100     | 100     |                 |
+| contracts/         | 100     | 100      | 100     | 100     |                 |
+| Project.sol        | 100     | 100      | 100     | 100     |                 |
 | ProjectFactory.sol | 100     | 100      | 100     | 100     |                 |
-| All files          | 100     | 97.22    | 100     | 100     |                 |
+| All files          | 100     | 100      | 100     | 100     |                 |
 
 ## Design Exercise Answer
 

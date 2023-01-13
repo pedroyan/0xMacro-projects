@@ -1071,7 +1071,7 @@ describe('Crowdfundr', () => {
       })
     })
 
-    describe.only('ADDED - Attacks Resiliency', () => {
+    describe('ADDED - Attacks Resiliency', () => {
       it('ADDED - Should not allow reentracy attacks to overclaim NFTs', async () => {
         // Arrange
         const ERC721AttackerFactory = (await ethers.getContractFactory('ERC721Attacker')) as ERC721Attacker__factory

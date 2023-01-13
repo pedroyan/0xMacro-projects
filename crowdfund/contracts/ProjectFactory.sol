@@ -32,6 +32,7 @@ contract ProjectFactory {
         emit ProjectCreated(address(project), msg.sender, _fundingGoal);
     }
 
+    /// @notice Returns the projects created by this factory
     function getProjects() external view returns (Project[] memory) {
         return projects;
     }

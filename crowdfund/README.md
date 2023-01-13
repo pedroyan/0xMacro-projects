@@ -108,8 +108,7 @@ function claimBadges() external {
   // ... REMAINING AFFECTS LOGIC
 
   // ... REMAINING INTERACTIONS LOGIC
-  // Minting would be performed similar to what exists in the contract now
-}
+  // Minting logic would be similar to what exists now
 
 ```
 

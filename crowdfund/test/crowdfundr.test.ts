@@ -40,6 +40,8 @@ import { BigNumber, BigNumberish } from 'ethers'
 import { time } from '@nomicfoundation/hardhat-network-helpers'
 import type { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
+  ERC721Attacker,
+  ERC721Attacker__factory,
   ERC721Ignorant,
   ERC721Ignorant__factory,
   ERC721Receiver,
@@ -48,6 +50,8 @@ import {
   ProjectFactory,
   ProjectFactory__factory,
   Project__factory,
+  RefundAttacker,
+  RefundAttacker__factory,
 } from '../typechain-types' // eslint-disable-line
 
 // ----------------------------------------------------------------------------
@@ -1067,10 +1071,43 @@ describe('Crowdfundr', () => {
       })
     })
 
-    describe('ADDED - Attacks Resiliency', () => {
-      // TODO: Reentrant refund
-      // TODO: Reentrant withdraw
-      // TODO: Reentrant NFT Claim
+    describe.only('ADDED - Attacks Resiliency', () => {
+      it('ADDED - Should not allow reentracy attacks to overclaim NFTs', async () => {
+        // Arrange
+        const ERC721AttackerFactory = (await ethers.getContractFactory('ERC721Attacker')) as ERC721Attacker__factory
+        const attackerContract = (await ERC721AttackerFactory.deploy(project.address)) as ERC721Attacker
+        await attackerContract.deployed()
+        await attackerContract.contribute({ value: ethers.utils.parseEther('2') })
+
+        // Act
+        const promise = attackerContract.attack()
+
+        // Assert
+        await expect(promise).to.be.revertedWithCustomError(project, 'NoBadgesToClaim')
+        expect(await project.balanceOf(attackerContract.address)).to.equal(0)
+      })
+
+      it('ADDED - Should not allow reentry attacks to overclaim refunds', async () => {
+        // Arrange
+        const RefundAttackerFactory = (await ethers.getContractFactory('RefundAttacker')) as RefundAttacker__factory
+        const attackerContract = (await RefundAttackerFactory.deploy(project.address)) as RefundAttacker
+        await attackerContract.deployed()
+
+        // Attacker has a balance of 1 ETH and should only be able to get refunded for 1 ETH
+        attackerContract.contribute({ value: ethers.utils.parseEther('1') })
+
+        // Added more funds to allow the attacker to make more funds available to be claimed via a possible
+        // reentrancy attack
+        await project.connect(alice).contribute({ value: ethers.utils.parseEther('5') })
+
+        await project.connect(creator).cancel()
+
+        // Act
+        const promise = attackerContract.attack()
+
+        // Assert
+        await expect(promise).to.be.reverted
+      })
     })
   })
 })

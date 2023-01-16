@@ -89,7 +89,7 @@ function claimBadges() external {
 
 Consider adding additional `address _receiver` parameter to declare where to send the badges to. It is useful in a scenario where the creator may want to send badges to a cold wallet, as an example.
 
-## **[Q-4]** Minor gas optimization available in `claimBadges()` for loop
+## **[Q-4]** Use pre-increment in `claimBadges()` mint for loop
 
 On line 201, Project.sol `claimBadges` contains a `for` loop declared as:
 

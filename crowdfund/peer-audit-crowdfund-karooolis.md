@@ -46,30 +46,7 @@ function withdraw(uint256 _amount) external onlyCreator requireStatus(ProjectSta
 }
 ```
 
-## **[L-3]** Creator may be able to withdraw more than contributed
-
-On line 157, Project.sol `withdraw()` function has the following code:
-
-```solidity
-    (bool _success, ) = msg.sender.call{value: _amount}("");
-    if(!_success) revert EthTransferFailed();
-```
-
-The contract may be force fed Ether via the following means - https://consensys.github.io/smart-contract-best-practices/attacks/force-feeding/. It would result in some Ether having no contributor assigned. The creator, in that case, would be able to withdraw amount which is not attributable to any contributor. It might be a desirable side-effect though.
-
-## **[Q-1]** Unnecessary getter function
-
-On line 36, ProjectFactory.sol has the following code:
-
-```solidity
-function getProjects() external view returns (Project[] memory) {
-    return projects;
-}
-```
-
-Given that `projects` variable is already set to `public`, the getter function is redundant, and is safe to remove.
-
-## **[Q-2]** `withdraw()` lacks funds receiver parameter
+## **[Q-1]** `withdraw()` lacks funds receiver parameter
 
 On line 157, Project.sol `withdraw()` function has the following function declaration:
 
@@ -79,7 +56,7 @@ function withdraw(uint256 _amount) external onlyCreator requireStatus(ProjectSta
 
 Consider adding additional `address _receiver` parameter to declare where to withdraw the funds to. It is useful in a scenario where the creator may want to withdraw the funds to a cold wallet, as an example.
 
-## **[Q-3]** `claimBadges()` lacks badges receiver parameter
+## **[Q-2]** `claimBadges()` lacks badges receiver parameter
 
 On line 187, Project.sol `claimBadges()` function has the following function declaration:
 
@@ -89,7 +66,7 @@ function claimBadges() external {
 
 Consider adding additional `address _receiver` parameter to declare where to send the badges to. It is useful in a scenario where the creator may want to send badges to a cold wallet, as an example.
 
-## **[Q-4]** Use pre-increment in `claimBadges()` mint for loop
+## **[Q-3]** Use pre-increment in `claimBadges()` mint for loop
 
 On line 201, Project.sol `claimBadges` contains a `for` loop declared as:
 
@@ -101,7 +78,7 @@ for(uint256 i = _currentBadges; i < totalBadgesClaimed; i++) {
 
 Consider changing the `i++` increment to pre-increment (`++i`) which saves about 5 gas per iteration.
 
-## **[Q-5]** `_getClaimableBadges()` contains redundant `contributor` parameter
+## **[Q-4]** `_getClaimableBadges()` contains redundant `contributor` parameter
 
 On line 189, Project.sol contains the following code:
 

@@ -1,10 +1,10 @@
-import * as dotenv from "dotenv";
+import * as dotenv from 'dotenv'
 
-import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
-import "hardhat-gas-reporter";
+import { HardhatUserConfig } from 'hardhat/config'
+import '@nomicfoundation/hardhat-toolbox'
+import 'hardhat-gas-reporter'
 
-dotenv.config();
+dotenv.config()
 
 // Dear Student,
 //
@@ -19,7 +19,7 @@ dotenv.config();
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.17",
+    version: '0.8.17',
     settings: {
       optimizer: {
         enabled: true,
@@ -29,14 +29,13 @@ const config: HardhatUserConfig = {
   },
   networks: {
     sepolia: {
-      url: process.env.SEPOLIA_URL || "",
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      url: process.env.SEPOLIA_URL || '',
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
     hardhat: {
       accounts: {
-        count: 20,
-        accountsBalance: "10000000000000000000000", // 10ETH (Default)
+        count: 40,
+        accountsBalance: '90000000000000000000000000', // 90_000 ETH (Default)
       },
     },
   },
@@ -46,6 +45,6 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
-};
+}
 
-export default config;
+export default config

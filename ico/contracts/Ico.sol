@@ -4,22 +4,61 @@ pragma solidity 0.8.17;
 import "./SpaceCoin.sol";
 import "./Ownable.sol";
 
-error InvalidTransition();
-error InvalidPhase();
-
-error InvestorNotInPasslist(address investor);
-error IndividualLimitReached(address investor, uint256 newTotal, uint256 limit);
-error PhaseLimitReached(uint256 newTotal, uint256 limit);
-error NothingToRedeem(address investor);
-error ContributionsPaused();
-error RedemptionsPaused();
-error TokenTransferFailed(address recipient, uint256 amount);
-
 contract ICO is Ownable {
     ///@notice The phases of the ICO
     enum IcoPhase { SEED, GENERAL, OPEN }
 
+    /**
+     * @notice thrown when a function is called in the wrong phase
+     * @param actualPhase the actual phase of the ICO
+     * @param expectedPhase the expected phase of the ICO for the function to be called
+     */
     error NotAllowedOnPhase(IcoPhase actualPhase, IcoPhase expectedPhase);
+
+    /// @notice thrown when a phase transition is not valid (i.e: Backwards transitions, skipping phases, etc.)
+    error InvalidTransition();
+
+    /**
+     * @notice thrown when an investor tries to contribute to the ICO but is not in the SEED phase passlist.
+     * @param investor the address of the investor that attempted to make the contribution.
+     */
+    error InvestorNotInPasslist(address investor);
+
+    /**
+     * @notice thrown when an investor tries to contribute to the ICO but the contribution would exceed the individual
+     * limit for the Ico phase.
+     * @param investor the address of the investor that attempted to make the contribution.
+     * @param newTotal the total contribution amount the investor would have after the attempted contribution.
+     * @param limit the individual limit for the ICO phase.
+     */
+    error IndividualLimitReached(address investor, uint256 newTotal, uint256 limit);
+
+    /**
+     * @notice thrown when an investor tries to contribute to the ICO but the contribution would exceed the total limit
+     * for the phase.
+     * @param newTotal the total contribution amount the contract would have after the attempted contribution.
+     * @param limit the total contribution limit for the current ICO phase.
+     */
+    error PhaseLimitReached(uint256 newTotal, uint256 limit);
+
+    /**
+     * @notice thrown when an investor tries to redeem tokens but has no contributions left to redeem.
+     * @param investor the address of the investor that attempted to redeem tokens.
+     */
+    error NothingToRedeem(address investor);
+
+    ///@notice thrown when an investor tries to make a contribution but the ICO Contributions are paused.
+    error ContributionsPaused();
+
+    ///@notice thrown when an investor tries to redeem tokens but the Token Redemptions are paused.
+    error RedemptionsPaused();
+
+    /**
+     * @notice thrown when an SpaceToken ERC-20 transfer fails.
+     * @param recipient the address of the recipient of the transfer.
+     * @param amount the amount of tokens that were attempted to be transferred to the recipient.
+     */
+    error TokenTransferFailed(address recipient, uint256 amount);
 
     ///@notice Individual contribution limit applied to each investor on the SEED phase.
     uint128 public constant SEED_INDIVIDUAL_LIMIT = 1_500 ether;
@@ -58,19 +97,39 @@ contract ICO is Ownable {
     ///@notice Flag indicating if redemptions are paused
     bool public pauseRedemptions;
 
-    ///@notice Event emitted when the ICO phase is changed
+    /**
+     * @notice Event emitted when the ICO phase is changed.
+     * @param oldPhase the previous phase of the ICO.
+     * @param newPhase the new phase of the ICO.
+     */
     event PhaseChanged(IcoPhase oldPhase, IcoPhase newPhase);
 
-    ///@notice Event emitted when an investor contributes to the ICO
+    /**
+     * @notice Event emitted when an investor contributes to the ICO
+     * @param investor the address of the investor that contributed to the ICO.
+     * @param amount the amount of wei contributed by the investor.
+     * @param phase the phase of the ICO in which the contribution was made.
+     */
     event ContributionReceived(address indexed investor, uint256 amount, IcoPhase phase);
 
-    ///@notice Event emitted when an investor redeems their SpaceCoin
+    /**
+     * @notice Event emitted when an investor redeems tokens for their contributions.
+     * @param investor the address of the investor that redeemed tokens.
+     * @param destination the address of the receiver of the redeemed tokens.
+     * @param amount the amount of tokens redeemed by the investor.
+     */
     event TokensRedeemed(address indexed investor, address indexed destination, uint256 amount);
 
-    ///@notice Event emitted when the contributions are paused or unpaused
+    /**
+     * @notice Event emitted when the contributions are paused or unpaused
+     * @param newValue the new value of the pauseContributions flag.
+     */
     event PauseContributionsChanged(bool newValue);
 
-    ///@notice Event emitted when the redemptions are paused or unpaused
+    /**
+     * @notice Event emitted when the redemptions are paused or unpaused
+     * @param newValue the new value of the pauseRedemptions flag.
+     */
     event PauseRedemptionsChanged(bool newValue);
 
     /**

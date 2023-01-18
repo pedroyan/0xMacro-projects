@@ -28,7 +28,7 @@ import { ethers } from 'hardhat'
 import { BigNumber, BigNumberish } from 'ethers'
 import { time, loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import type { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { ICO, ICO__factory, SpaceCoin } from '../typechain-types' // eslint-disable-line
+import { ForceFeeder__factory, ICO, ICO__factory, SpaceCoin } from '../typechain-types' // eslint-disable-line
 
 enum IcoPhase {
   SEED,
@@ -1009,6 +1009,64 @@ describe('ICO', () => {
 
         // Assert
         await expect(promise).to.be.revertedWithCustomError(ico, 'FlagUnchanged').withArgs(false)
+      })
+    })
+  })
+
+  describe('Attacks', () => {
+    async function setupFixtureAndForceFeeder() {
+      const toReturn = await setupFixture()
+
+      const ForceFeederFactory = (await ethers.getContractFactory('ForceFeeder')) as ForceFeeder__factory
+      const forceFeeder = await ForceFeederFactory.deploy(toReturn.ico.address)
+
+      return { ...toReturn, forceFeeder }
+    }
+
+    describe('ETH Force-Feeding', async () => {
+      it('should not account for force-fed ETH', async () => {
+        // Arrange
+        const { ico, forceFeeder } = await loadFixture(setupFixtureAndForceFeeder)
+
+        // Act
+        await forceFeeder.connect(deployer).forceFeedIco({ value: ethers.utils.parseEther('1') })
+
+        // Assert
+        expect(await ico.totalContributions()).to.equal(ethers.utils.parseEther('0'))
+        expect(await ethers.provider.getBalance(ico.address)).to.equal(ethers.utils.parseEther('1'))
+      })
+
+      it('should not take into account force-fed ETH in the phase limits', async () => {
+        // Arrange
+        const { ico, forceFeeder } = await loadFixture(setupFixtureAndForceFeeder)
+        const contributionPromiseArr: Promise<unknown>[] = []
+        for (let i = 0; i < 9; i++) {
+          contributionPromiseArr.push(ico.connect(allowlistedInvestors[i]).contribute({ value: SEED_INDIVIDUAL_LIMIT }))
+        }
+        await Promise.all(contributionPromiseArr) // Total Contribution here: 13_500 ETH, 1_500 ETH left
+        // Act
+        forceFeeder.connect(deployer).forceFeedIco({ value: SEED_INDIVIDUAL_LIMIT }) // Contribute 1_500 ETH, but not accounted for the limit
+        await ico.connect(allowlistedInvestors[9]).contribute({ value: SEED_INDIVIDUAL_LIMIT }) // Total Contribution here: 15_000 ETH. Should not revert.
+
+        // Assert
+        expect(await ico.totalContributions()).to.equal(ethers.utils.parseEther('15000'))
+      })
+
+      it('should not skew token redemption ratios for force-fed ETH', async () => {
+        // Arrange
+        const { ico, forceFeeder, spaceCoin } = await loadFixture(setupFixtureAndForceFeeder)
+        await ico.connect(deployer).advancePhase(IcoPhase.GENERAL)
+        await ico.connect(deployer).advancePhase(IcoPhase.OPEN)
+        const contribution = MAX_CONTRIBUTION_LIMIT
+
+        // Act
+        await ico.connect(alice).contribute({ value: contribution })
+        await forceFeeder.connect(bob).forceFeedIco({ value: ethers.utils.parseEther('100') })
+        await ico.connect(alice).redeemTokens()
+
+        // Assert
+        expect(await ico.totalContributions()).to.equal(contribution)
+        expect(await spaceCoin.balanceOf(alice.address)).to.equal(MAX_CONTRIBUTION_LIMIT.mul(5))
       })
     })
   })

@@ -1045,7 +1045,7 @@ describe('ICO', () => {
         }
         await Promise.all(contributionPromiseArr) // Total Contribution here: 13_500 ETH, 1_500 ETH left
         // Act
-        forceFeeder.connect(deployer).forceFeedIco({ value: SEED_INDIVIDUAL_LIMIT }) // Contribute 1_500 ETH, but not accounted for the limit
+        await forceFeeder.connect(deployer).forceFeedIco({ value: SEED_INDIVIDUAL_LIMIT }) // Contribute 1_500 ETH, but not accounted for the limit
         await ico.connect(allowlistedInvestors[9]).contribute({ value: SEED_INDIVIDUAL_LIMIT }) // Total Contribution here: 15_000 ETH. Should not revert.
 
         // Assert

@@ -217,7 +217,7 @@ describe('CollectorDao', () => {
       await expect(promise).to.be.revertedWithCustomError(collectorDao, 'EmptyProposal')
     })
 
-    it('should reject proposals with mistmatched arguments', async () => {
+    it('should reject proposals with mistmatched arguments (values)', async () => {
       // Arrange
       const { collectorDao, alice, createBuyNftProposal } = await loadFixture(deployCollectorDaoFixture)
       await collectorDao.connect(alice).purchaseMembership({
@@ -231,6 +231,26 @@ describe('CollectorDao', () => {
         price: ethers.utils.parseEther('0.1'),
       })
       proposalPayload[1].push(1234) // Add a random argument to one of the proposal arrays, mistmatching their sizes
+      const promise = collectorDao.connect(alice).propose(...proposalPayload)
+
+      // Assert
+      await expect(promise).to.be.revertedWithCustomError(collectorDao, 'MismatchedProposalArgs')
+    })
+
+    it('should reject proposals with mistmatched arguments (calldatas)', async () => {
+      // Arrange
+      const { collectorDao, alice, createBuyNftProposal } = await loadFixture(deployCollectorDaoFixture)
+      await collectorDao.connect(alice).purchaseMembership({
+        value: ethers.utils.parseEther('1'),
+      })
+
+      // Act
+      const { proposalPayload } = createBuyNftProposal({
+        nftId: 0,
+        description: 'Buy NFT #0',
+        price: ethers.utils.parseEther('0.1'),
+      })
+      proposalPayload[2].push('0x1234') // Add a random argument to one of the proposal arrays, mistmatching their sizes
       const promise = collectorDao.connect(alice).propose(...proposalPayload)
 
       // Assert
@@ -972,6 +992,22 @@ describe('CollectorDao', () => {
 
       // Assert
       await expect(tx).to.emit(collectorDao, 'ProposalExecuted').withArgs(buyNftProposal.proposalId, charles.address)
+    })
+
+    it('should reject direct invocations of the buyNFTFromMarketplace function', async () => {
+      // Arrange
+      const { buyNftProposal, collectorDao, bob, charles, nftMarketplace } = await loadFixture(setupProposalFixture)
+      await collectorDao.connect(bob).castVote(buyNftProposal.proposalId, true)
+      await timeTravel(SEVEN_DAYS_IN_SECONDS + 1)
+
+      // Act
+      const nftAddr = nftMarketplace.address
+      const promise = collectorDao
+        .connect(charles)
+        .buyNFTFromMarketplace(nftAddr, nftAddr, 0, ethers.utils.parseEther('0.01'))
+
+      // Assert
+      await expect(promise).to.be.revertedWithCustomError(collectorDao, 'Unauthorized')
     })
 
     describe('Execution reward', () => {

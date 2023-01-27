@@ -64,15 +64,107 @@ You are writing a contract for Collector DAO, a DAO that aims to collect NFTs. T
 
 ## Code Coverage Report
 
-<!-- Copy + paste your coverage report here before submitting your project -->
-<!-- You can see how to generate a coverage report in the "Solidity Code Coverage" section located here: -->
-<!-- https://learn.0xmacro.com/training/project-crowdfund/p/4 -->
+| File                   | % Stmts | % Branch | % Funcs | % Lines | Uncovered Lines |
+| ---------------------- | ------- | -------- | ------- | ------- | --------------- |
+| contracts/             | 98.31   | 94       | 100     | 97.87   |                 |
+| CollectorDao.sol       | 100     | 95.65    | 100     | 98.77   | 432             |
+| CollectorDaoEIP712.sol | 88.89   | 75       | 100     | 92.31   | 80              |
+| INftMarketplace.sol    | 100     | 100      | 100     | 100     |                 |
+| All files              | 98.31   | 94       | 100     | 97.87   |                 |
 
 ## Design Exercise Answer
 
 <!-- Answer the Design Exercise. -->
 <!-- In your answer: (1) Consider the tradeoffs of your design, and (2) provide some pseudocode, or a diagram, to illustrate how one would get started. -->
 
+### Design task
+
 > Per project specs there is no vote delegation; it's not possible for Alice to delegate her voting power to Bob, so that when Bob votes he does so with the voting power of both himself and Alice in a single transaction. This means for someone's vote to count, that person must sign and broadcast their own transaction every time. How would you design your contract to allow for non-transitive vote delegation?
 
+The approach would consist in tracking which members delegated votes to other members via the `delegators` map. The logic to set a delegate would be as follows:
+
+```solidity
+  /// @notice Mapping of a member address => addresses that delegated their voting power to this member.
+	mapping(address => address[]) public delegators;
+
+	function setDelegate(address delegate) external {
+		DaoMember storage member = _getExistingMember(msg.sender);
+		if (member.delegate == delegate) revert DelegateAlreadySet(msg.sender, delegate);
+
+		_getExistingMember(delegate); // revert if the new delegate is not a member
+
+		// Removes delegator from previous delegate
+		if (member.delegate != address(0)) {
+			_removeDelegator(msg.sender, delegators[member.delegate]);
+		}
+
+		// Sets new delegate
+		member.delegate = delegate;
+		delegators[delegate].push(msg.sender);
+	}
+
+	function _removeDelegator(address delegator, address[] storage delegatorsOfDelegate) private {
+		for (uint256 i = 0; i < delegatorsOfDelegate.length; i++) {
+			if (delegatorsOfDelegate[i] == delegator) {
+				delegatorsOfDelegate[i] = delegatorsOfDelegate[delegatorsOfDelegate.length - 1];
+				delegatorsOfDelegate.pop();
+				break;
+			}
+		}
+	}
+```
+
+When the delegate votes, it's member `votingPower` would be summed to their delegated `votingPower`, as shown in the code below:
+
+```solidity
+function _castVote(uint256 proposalId, bool support, address voterAddress) private {
+  // ... validation logic
+
+  // Calculate total voting power
+  uint64 votingPower = member.votingPower;
+  address[] storage delegatorAddresses = delegators[voterAddress];
+  for (uint i = 0; i < delegatorAddresses.length; i++) {
+    address delegatorAddress = delegatorAddresses[i];
+
+    DaoMember storage delegator = members[delegatorAddress];
+    // Check if delegator can vote
+    if (delegator.joinedAtProposalNumber < proposal.proposalNumber && !votes[delegatorAddress][proposalId]) {
+      // Increase voting power
+      votingPower += delegator.votingPower;
+
+      // Prevents delegators from voting twice if he unsets the delegate and votes himself
+      // Also prevents delegators from voting twice if he delegates to another address and had that address vote
+      votes[delegatorAddress][proposalId] = true;
+    }
+  }
+
+  // Record vote
+  votes[voterAddress][proposalId] = true;
+  proposal.totalMemberVotes++;
+  if (support) {
+    proposal.yesVotes += votingPower;
+  } else {
+    proposal.noVotes += votingPower;
+  }
+}
+```
+
+**Benefits of approach**
+
+- Allows setting, unsetting and changing delegates.
+- Prevents double-voting via setting multiple delegations.
+- Prevents double-voting via unsetting delegation and votting directly.
+- Enforces constraints around members joining before proposals even on delegated votes.
+
+**Drawbacks of the approach**
+
+- Non-trivial complexity
+  - Works in theory, but does it work in practice?
+  - I would only be confident in the approach above if I created tests for each delegation edge case I can think of
+- Gas inneficient
+  - Voting gas costs increases linearly with the amount of delegations a given member has received.
+  - Voting costs will be quite high for a popular member with plenty of delegations assigned to them.
+
 > What are some problems with implementing transitive vote delegation on-chain? (Transitive means: If A delegates to B, and B delegates to C, then C gains voting power from both A and B, while B has no voting power).
+
+The main problem is that `A` never had any say in assigning their votes to `C`, they just ended up there without `A`'s consent. This is particularly problematic if `C` does not share the same views about the DAO as `A`.

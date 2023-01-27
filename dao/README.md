@@ -66,11 +66,11 @@ You are writing a contract for Collector DAO, a DAO that aims to collect NFTs. T
 
 | File                   | % Stmts | % Branch | % Funcs | % Lines | Uncovered Lines |
 | ---------------------- | ------- | -------- | ------- | ------- | --------------- |
-| contracts/             | 98.31   | 94       | 100     | 97.87   |                 |
-| CollectorDao.sol       | 100     | 95.65    | 100     | 98.77   | 432             |
+| contracts/             | 98.31   | 96       | 100     | 98.94   |                 |
+| CollectorDao.sol       | 100     | 97.83    | 100     | 100     |                 |
 | CollectorDaoEIP712.sol | 88.89   | 75       | 100     | 92.31   | 80              |
 | INftMarketplace.sol    | 100     | 100      | 100     | 100     |                 |
-| All files              | 98.31   | 94       | 100     | 97.87   |                 |
+| All files              | 98.31   | 96       | 100     | 98.94   |                 |
 
 ## Design Exercise Answer
 

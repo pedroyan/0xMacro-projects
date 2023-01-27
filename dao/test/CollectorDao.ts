@@ -1032,6 +1032,22 @@ describe('CollectorDao', () => {
         expect(ethReceivedForExecution).to.equal(ethers.utils.parseEther('0.01'))
       })
 
+      it('should revert if executor fails to receive the 0.01 ETH reward', async () => {
+        // Arrange
+        const { buyNftProposal, collectorDao, bob, charles } = await loadFixture(setupProposalFixture)
+        await bob.sendTransaction({ to: collectorDao.address, value: ethers.utils.parseEther('5') })
+        await collectorDao.connect(bob).castVote(buyNftProposal.proposalId, true)
+        await timeTravel(SEVEN_DAYS_IN_SECONDS + 1)
+        const Executor = await ethers.getContractFactory('BrokenExecutor')
+        const executor = await Executor.deploy(collectorDao.address)
+
+        // Act
+        const promise = executor.connect(charles).execute(...buyNftProposal.callPayload)
+
+        // Assert
+        await expect(promise).to.be.revertedWithCustomError(collectorDao, 'ExecutionRewardTransferFailed')
+      })
+
       it('should not provide execution reward if proposal is successful and balance after execution is < 5 ETH', async () => {
         // Arrange
         const { buyNftProposal, collectorDao, bob, charles } = await loadFixture(setupProposalFixture)
@@ -1136,8 +1152,4 @@ describe('CollectorDao', () => {
       })
     })
   })
-
-  // Attacks
-  //  should revert reentrant proposal executions
-  //  should revert reentrant execution reward receiver
 })

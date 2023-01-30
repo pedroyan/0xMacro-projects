@@ -475,7 +475,11 @@ contract CollectorDao is CollectorDaoEIP712 {
 	 * @param support Whether to support the proposal or not.
 	 * @param voterAddress Address of the voter.
 	 */
-	function _castVote(uint256 proposalId, bool support, address voterAddress) private {
+	function _castVote(
+		uint256 proposalId,
+		bool support,
+		address voterAddress
+	) private {
 		DaoMember storage member = _getExistingMember(voterAddress);
 		Proposal storage proposal = _getExistingProposal(proposalId);
 
@@ -567,7 +571,12 @@ contract CollectorDao is CollectorDaoEIP712 {
 	/**
 	 * @notice Implementation of the ERC721TokenReceiver interface of the EIP-712 standard.
 	 */
-	function onERC721Received(address, address, uint256, bytes memory) public pure returns (bytes4) {
+	function onERC721Received(
+		address,
+		address,
+		uint256,
+		bytes memory
+	) public pure returns (bytes4) {
 		return _ERC721_RECEIVED;
 	}
 }

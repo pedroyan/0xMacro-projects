@@ -52,18 +52,150 @@ Additional notes:
 
 ## Code Coverage Report
 
-<!-- Copy + paste your coverage report here before submitting your project -->
-<!-- You can see how to generate a coverage report in the "Solidity Code Coverage" section located here: -->
-<!-- https://learn.0xmacro.com/training/project-crowdfund/p/4 -->
+| File                 | % Stmts | % Branch | % Funcs | % Lines | Uncovered Lines |
+| -------------------- | ------- | -------- | ------- | ------- | --------------- |
+| contracts/           | 100     | 98.86    | 100     | 100     |                 |
+| Ico.sol              | 100     | 100      | 100     | 100     |                 |
+| Ownable.sol          | 100     | 100      | 100     | 100     |                 |
+| SpaceCoin.sol        | 100     | 100      | 100     | 100     |                 |
+| SpaceLP.sol          | 100     | 96.43    | 100     | 100     |                 |
+| SpaceRouter.sol      | 100     | 100      | 100     | 100     |                 |
+| contracts/libraries/ | 100     | 100      | 100     | 100     |                 |
+| Math.sol             | 100     | 100      | 100     | 100     |                 |
+| SafeERC20.sol        | 100     | 100      | 100     | 100     |                 |
+| SwapMath.sol         | 100     | 100      | 100     | 100     |                 |
+| All files            | 100     | 99.04    | 100     | 100     |                 |
 
 ## Design Exercise Answer
 
 <!-- Answer the Design Exercise. -->
 <!-- In your answer: (1) Consider the tradeoffs of your design, and (2) provide some pseudocode, or a diagram, to illustrate how one would get started. -->
 
-> 1. Many liquidity pools incentivize liquidity providers by offering additional rewards for staking their LP tokens - What are the tradeoffs of staking? Consider the tradeoffs for the LPs and for the protocols themselves.
+### Staking Tradeoffs
 
-> 2. Describe (using pseudocode) how you could add staking functionality to your LP.
+> Many liquidity pools incentivize liquidity providers by offering additional rewards for staking their LP tokens - What are the tradeoffs of staking? Consider the tradeoffs for the LPs and for the protocols themselves.
+
+**Positives consequences:**
+
+- Staking rewards creates incentives for liquidity providers to add and keep liquidity in LPs.
+  - Having enough liquidity on the pool for a project's token can make or break the project.
+
+**Negative consequences:**
+
+- Rewards must be paid by the staking program creator.
+  - Even if the tokens can be created out of thin air, if there is a perception of value for that token, other market participants will be willing to pay money to own it, which means the token can be ascribed a theoretical market price.
+- Staking programs can be used to siphon liquidity from one protocol into another.
+  - i.e: Sushiswap Vampire Attack on Uniswap.
+
+### Staking functionality
+
+> Describe (using pseudocode) how you could add staking functionality to your LP.
+
+Staking would be implemented via a staker contract that locks up LP tokens for a predetermined amount of time and rewards stakers for the locked liquidity. Once the lockup period is over, providers can claim back the LP Tokens + the rewards. The high-level overview of the reward system would be as follows:
+
+![staking_overview](./.imgs/staking_overview.png)
+
+**Staker Initialization**
+
+The staker contract is initialized by setting:
+
+- The liquidity pool token that can be staked.
+- The reward token that will be offered.
+- The minimum amount of reward that must be deposited in the contract for staking to begin.
+- The duration of the incentive in blocks. This is to prevent miners from getting an unfair advantage in the reward partition by skewing the block timestamp.
+
+```solidity
+constructor(IERC20 _lpToken, IERC20 _rewardToken, uint256 _minimumReward, uint256 _stakingDurationBlocks) {
+  lpToken = _lpToken;
+  rewardToken = _rewardToken;
+  stakingEndBlock = block.number + _stakingDurationBlocks;
+  minimumReward = _minimumReward;
+}
+```
+
+**Staking LP Tokens:**
+
+LP Tokens can only be staked once the staker has been suficciently funded with rewards and while the staking period is still active:
+
+```solidity
+struct Staker {
+  uint256 stakedliquidityBlocks;
+  uint256 stakedLpTokens;
+  bool claimedReward;
+}
+
+mapping(address => Staker) public stakers;
+
+// onlyWhenActive ensures staking period is still active
+function stake(uint256 _lpIn) external onlyWhenActive {
+  // Ensures the contract has been funded with the minimum reward before accepting stakes
+  if (rewardToken.balanceOf(address(this)) < minimumReward) {
+    revert MinimumRewardNotMet();
+  }
+
+  // Calculate liquidity blocks for the staker
+  uint256 _liquidityBlocks = _lpIn * (stakingEndBlock - block.number);
+  if (_liquidityBlocks == 0) {
+    revert InvalidStake();
+  }
+
+  // Increment liquidity blocks for the staker and the program
+  Staker storage _staker = stakers[msg.sender];
+  _staker.stakedLpTokens += _lpIn;
+  _staker.stakedliquidityBlocks += _liquidityBlocks;
+  totalLiquidityBlocks += _liquidityBlocks;
+
+  // Transfer LP tokens to the contract and keep them locked until staking period is over
+  lpToken.safeTransferFrom(msg.sender, address(this), _lpIn);
+}
+```
+
+**Claiming rewards + LP Tokens:**
+
+Once locking period is over, the staker can claim back their LP Tokens and their proportional share of the rewards.
+
+```solidity
+// onlyWhenOver ensures staking period is over
+function claimReward() external onlyWhenOver {
+  // Lock the reward to be distributed as soon as the first staker claims it. This ensures
+  // a fair distribution for everyone.
+  if (lockedReward == 0) {
+    lockedReward = rewardToken.balanceOf(address(this));
+  }
+
+  // Ensure the staker has not claimed the reward already
+  Staker storage _staker = stakers[msg.sender];
+  if (_staker.claimedReward) {
+    revert RewardAlreadyClaimed();
+  }
+
+  // Calculate reward for the staker
+  uint256 _reward = (_staker.stakedliquidityBlocks * lockedReward) / totalLiquidityBlocks;
+
+  // Mark reward as claimed
+  _staker.claimedReward = true;
+
+  // Transfer reward to the staker
+  rewardToken.safeTransfer(msg.sender, _reward);
+
+  // Transfer back LP tokens to the staker
+  lpToken.safeTransfer(msg.sender, _staker.stakedLpTokens);
+}
+```
+
+**Notes:**
+
+Since this is a design exercise, the code was not hardened against potential attacks. It is mostly here to illustrate the idea
+
+**Benefits of the approach:**
+
+- Simple: The contract is easy to implement and understand.
+- Modular: This staking mechanism works with any ERC-20 LP Token and any ERC-20 Reward token.
+
+**Downsides of the approach:**
+
+- Requires a predetermined end date for all stakers.
+- Simplistic reward math.
 
 ## Testnet Deploy Information
 

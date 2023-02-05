@@ -20,7 +20,6 @@ See [README-Setup.md](./README-Setup.md)
 
 - Add a withdraw function to your ICO contract that allows you to **move the invested funds out of the ICO contract and into the treasury address.**
 - In one of your tests, test the end-to-end process of raising funds via the ICO, withdrawing them to the treasury, and then depositing an even worth of ETH and SPC into your liquidity contract.
-<!-- TODO: PEDRO, DO NOT FORGET THE ABOVE!! -->
 
 ### Liquidity Pool Contract
 
@@ -67,9 +66,6 @@ Additional notes:
 | All files            | 100     | 99.04    | 100     | 100     |                 |
 
 ## Design Exercise Answer
-
-<!-- Answer the Design Exercise. -->
-<!-- In your answer: (1) Consider the tradeoffs of your design, and (2) provide some pseudocode, or a diagram, to illustrate how one would get started. -->
 
 ### Staking Tradeoffs
 
@@ -182,6 +178,8 @@ function claimReward() external onlyWhenOver {
   lpToken.safeTransfer(msg.sender, _staker.stakedLpTokens);
 }
 ```
+
+To prevent tokens from being locked forever in the contract, any excess `rewardToken` balance above the `lockedReward` will be able to be claimed by the owner of the staker.
 
 **Notes:**
 

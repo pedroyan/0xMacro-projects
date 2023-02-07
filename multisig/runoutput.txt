@@ -1,0 +1,9 @@
+Deploying contracts with the account: 0x82E51427C8020d84B6A996394fdF5C607Ff70870
+Account balance: 0.399999987584085268 ETH
+Network ID: 5
+Found config object for network 5: { safeAddress: '0xBa6b4dF30622fbbE92Fe8Ba34d6B70d536C5215f' }
+Logic implementation deployed to: 0x9Aae7B61653257e5DfF1535bA67aFFA7EB4BFe93
+LogicImproved implementation deployed to: 0x77f43bf423226a6e66D23C176cE03AF80b7988ac
+Proxy deployed to: 0xFa8AADCc6727c6b4f930C3F2298D312f9AC705FE
+Proxy initialized!
+Proxy ownership transferred to safe: 0xBa6b4dF30622fbbE92Fe8Ba34d6B70d536C5215f

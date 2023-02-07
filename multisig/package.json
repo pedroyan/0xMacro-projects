@@ -1,0 +1,26 @@
+{
+  "name": "multisig",
+  "version": "1.0.0",
+  "description": "## Deliverables",
+  "main": "index.js",
+  "scripts": {
+    "node": "npx hardhat node",
+    "deploy:goerli": "npx hardhat run scripts/deploy.ts --network goerli",
+    "deploy:hardhat": "npx hardhat run scripts/deploy.ts --network hardhat",
+    "deploy:local": "npx hardhat run scripts/deploy.ts --network localhost",
+    "multisig:local": "npx hardhat run scripts/multisig.ts --network localhost"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.1",
+    "dotenv": "^16.0.3",
+    "hardhat": "^2.12.6",
+    "prettier": "^2.8.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.8.1",
+    "@openzeppelin/contracts-upgradeable": "^4.8.1"
+  }
+}

@@ -8,7 +8,8 @@
     "deploy:goerli": "npx hardhat run scripts/deploy.ts --network goerli",
     "deploy:hardhat": "npx hardhat run scripts/deploy.ts --network hardhat",
     "deploy:local": "npx hardhat run scripts/deploy.ts --network localhost",
-    "multisig:local": "npx hardhat run scripts/multisig.ts --network localhost"
+    "multisig:local": "npx hardhat run scripts/multisig.ts --network localhost",
+    "verify:goerli": "npx hardhat run scripts/verify.ts --network goerli"
   },
   "keywords": [],
   "author": "",

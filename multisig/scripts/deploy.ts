@@ -1,4 +1,5 @@
 import { ethers } from 'hardhat'
+import { verifyLogic, verifyLogicImproved, verifyProxy } from './helpers/verification'
 
 const configObject = {
   31337: {
@@ -11,6 +12,8 @@ const configObject = {
 
 type AddressConfig = (typeof configObject)[31337]
 type MaybeConfig = AddressConfig | undefined
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function main() {
   const [deployer] = await ethers.getSigners()
@@ -54,6 +57,22 @@ async function main() {
   // 5 - Transfer ownership of proxy to safe
   await proxiedLogic.transferOwnership(config.safeAddress).then((tx) => tx.wait())
   console.log(`Proxy ownership transferred to safe: ${config.safeAddress}`)
+
+  // Wait for a 1 minute delay for etherscan to index the block
+  console.log('Waiting 1 minute for etherscan to index the block...')
+  await sleep(60_000)
+
+  await verifyLogic(logic.address).catch((error) => {
+    console.error('Failed to verify logic', error)
+  })
+
+  await verifyLogicImproved(logicImproved.address).catch((error) => {
+    console.error('Failed to verify logic improved', error)
+  })
+
+  await verifyProxy(proxiedLogic.address, logic.address).catch((error) => {
+    console.error('Failed to verify proxy', error)
+  })
 }
 
 // We recommend this pattern to be able to use async/await everywhere

@@ -21,9 +21,9 @@ Transaction for transferring the ownership of the **Proxy** contract to the mult
 
 Transaction calling `upgrade(address)` to upgrade the **Proxy** from **Logic** -> **LogicImproved**
 
-| Contract | Function called | Transaction Etherscan Link |
-| -------- | --------------- | -------------------------- |
-| Proxy    | `upgrade`       | `FILL_ME_IN`               |
+| Contract | Function called | Transaction Etherscan Link                                                                        |
+| -------- | --------------- | ------------------------------------------------------------------------------------------------- |
+| Proxy    | `upgrade`       | https://goerli.etherscan.io/tx/0xf4ee2152baffb1cd79d9e7850595b76f70030041f5815defbc10f242f3e7e607 |
 
 # Design exercise
 

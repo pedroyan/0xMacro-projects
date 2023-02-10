@@ -271,6 +271,13 @@ contract CollectorDao is CollectorDaoEIP712 {
 	event ProposalExecuted(uint256 indexed proposalId, address indexed executor);
 
 	/**
+	 * Event emitted when a execution reward is claimed.
+	 * @param executor address of the executed that claimed the reward.
+	 * @param amount amount of wei that was claimed.
+	 */
+	event ExecutionRewardClaimed(address indexed executor, uint256 amount);
+
+	/**
 	 * @notice Modifier that reverts if the caller is not the DAO itself.
 	 */
 	modifier onlyDAO() {
@@ -472,6 +479,9 @@ contract CollectorDao is CollectorDaoEIP712 {
 
 		// Decrease amount owed by the amount to be paid out.
 		owedExecutionRewards[msg.sender] -= rewardAmount;
+
+		// Emit event reward claimed event.
+		emit ExecutionRewardClaimed(msg.sender, rewardAmount);
 
 		// Send ETH
 		// slither-disable-next-line arbitrary-send-eth | we want to allow any executor to receive the execution reward

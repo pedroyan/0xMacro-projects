@@ -166,10 +166,27 @@ contract CollectorDao is CollectorDaoEIP712 {
 
 	/**
 	 * @notice Thrown when a proposal execution reward transfer to the executor fails.
-	 * @param proposalId The ID of the proposal that the caller attempted to execute.
 	 * @param executor The address of the proposal executor.
 	 */
-	error ExecutionRewardTransferFailed(uint256 proposalId, address executor);
+	error ExecutionRewardTransferFailed(address executor, uint256 ethTransferred);
+
+	/**
+	 * @notice Thrown when an NFT Purchase fails.
+	 * @param marketplace The address of the marketplace that the DAO attempted to purchase the NFT from.
+	 * @param nftId The ID of the NFT that the DAO attempted to purchase.
+	 * @param price The price of the NFT that the DAO attempted to purchase.
+	 */
+	error NftPurchaseFailed(address marketplace, uint256 nftId, uint256 price);
+
+	/**
+	 * @notice Thrown when an executor tries to claim a reward when the DAO's ETH balance is insufficient to issue them.
+	 */
+	error InsufficientBalanceForReward();
+
+	/**
+	 * @notice Thrown when an executor without any rewards tries to claim a reward.
+	 */
+	error NoRewardsToClaim(address executor);
 
 	/// @notice The DAO's membership price,
 	uint256 constant MEMBERSHIP_PRICE = 1 ether;
@@ -203,6 +220,9 @@ contract CollectorDao is CollectorDaoEIP712 {
 
 	/// @notice Mapping of Member Address => Proposal Hash => Has voted. Used to track if a given member already voted for a proposal.
 	mapping(address => mapping(uint256 => bool)) private votes;
+
+	/// @notice Mapping of Executor address => reward they are owed for running proposals.
+	mapping(address => uint256) public owedExecutionRewards;
 
 	/**
 	 * @notice Event emitted when a new membership is purchased.
@@ -410,6 +430,10 @@ contract CollectorDao is CollectorDaoEIP712 {
 		// Increase the voting power of the proposer
 		members[proposal.proposer].votingPower++;
 
+		// Add pending execution reward.
+		owedExecutionRewards[msg.sender] += EXECUTION_REWARD;
+
+		// Emit proposal executed event.
 		emit ProposalExecuted(proposalId, msg.sender);
 
 		// Execute proposal
@@ -421,19 +445,40 @@ contract CollectorDao is CollectorDaoEIP712 {
 			}
 		}
 
-		// Check if balance is sufficient to issue execution reward. We intentionally check "this.balance" because we
-		// want to evaluate 5 ETH against the current balance of the DAO contract, regardless of where the ETH comes.
-		// Even force-fed ETH should be considered for the reward to create further execution incentives for executors.
-		if (address(this).balance >= EXECUTION_REWARD_THRESHOLD) {
-			// Transfer execution reward to the executor
-			// slither-disable-next-line arbitrary-send-eth | we want to allow any executor to receive the execution reward
-			(bool success, ) = msg.sender.call{value: EXECUTION_REWARD}('');
-			if (!success) {
-				revert ExecutionRewardTransferFailed(proposalId, msg.sender);
-			}
-		}
-
 		return proposalId;
+	}
+
+	/**
+	 * @notice Allows an executor to claim their execution reward. The reward can only be claimed if the DAO's balance
+	 * is greater than 5 ETH.
+	 */
+	function claimExecutionRewards() external {
+		// Check if execution reward to the executor is non-zero.
+		uint256 owedReward = owedExecutionRewards[msg.sender];
+		if (owedReward == 0) revert NoRewardsToClaim(msg.sender);
+
+		// Rewards can only be claimed if the DAO's balance is greater than 5 ETH. The check is applied at claim-time to
+		// reward executors even if the DAO's balance was below 5 ETH at the time of execution, providing further
+		// incentives for executors and creating a fair system in which rewards are given out when the DAO has enough
+		// wealth to give them out.
+		uint256 DAOethBalance = address(this).balance;
+		if (DAOethBalance < EXECUTION_REWARD_THRESHOLD) revert InsufficientBalanceForReward();
+
+		// Check the current balance is enough to pay the reward. Although very unlikely, it is possible that an executor
+		// accumulated rewards above the 5 ETH threshold and the current balance is insufficient to pay them out. In
+		// such cases, the entire balance is used to partially offset what they are owed so executors are not penalized
+		// for accumulating too much ETH in rewards by waiting for the balance to be sufficient for a one-off full payout.
+		uint256 rewardAmount = owedReward > DAOethBalance ? DAOethBalance : owedReward;
+
+		// Decrease amount owed by the amount to be paid out.
+		owedExecutionRewards[msg.sender] -= rewardAmount;
+
+		// Send ETH
+		// slither-disable-next-line arbitrary-send-eth | we want to allow any executor to receive the execution reward
+		(bool success, ) = msg.sender.call{value: rewardAmount}('');
+		if (!success) {
+			revert ExecutionRewardTransferFailed(msg.sender, rewardAmount);
+		}
 	}
 
 	/**
@@ -475,11 +520,7 @@ contract CollectorDao is CollectorDaoEIP712 {
 	 * @param support Whether to support the proposal or not.
 	 * @param voterAddress Address of the voter.
 	 */
-	function _castVote(
-		uint256 proposalId,
-		bool support,
-		address voterAddress
-	) private {
+	function _castVote(uint256 proposalId, bool support, address voterAddress) private {
 		DaoMember storage member = _getExistingMember(voterAddress);
 		Proposal storage proposal = _getExistingProposal(proposalId);
 
@@ -522,12 +563,16 @@ contract CollectorDao is CollectorDaoEIP712 {
 		address nftContract,
 		uint256 nftId,
 		uint256 maxPrice
-	) external payable onlyDAO {
-		if (marketplace.getPrice(nftContract, nftId) > maxPrice) {
+	) external onlyDAO {
+		uint256 nftPrice = marketplace.getPrice(nftContract, nftId);
+		if (nftPrice > maxPrice) {
 			revert NftPriceTooHigh();
 		}
 
-		marketplace.buy{value: msg.value}(nftContract, nftId);
+		bool success = marketplace.buy{value: nftPrice}(nftContract, nftId);
+		if (!success) {
+			revert NftPurchaseFailed(address(marketplace), nftId, nftPrice);
+		}
 	}
 
 	/**
@@ -571,12 +616,7 @@ contract CollectorDao is CollectorDaoEIP712 {
 	/**
 	 * @notice Implementation of the ERC721TokenReceiver interface of the EIP-712 standard.
 	 */
-	function onERC721Received(
-		address,
-		address,
-		uint256,
-		bytes memory
-	) public pure returns (bytes4) {
+	function onERC721Received(address, address, uint256, bytes memory) public pure returns (bytes4) {
 		return _ERC721_RECEIVED;
 	}
 }

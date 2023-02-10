@@ -13,7 +13,7 @@ import {
 const SEVEN_DAYS_IN_SECONDS = 60 * 60 * 24 * 7
 const ONE_HOUR_IN_SECONDS = 60 * 60
 
-type CreateBuyNftProposalArgs = Pick<BuyNftProposalArgs, 'nftId' | 'price' | 'description'>
+type CreateBuyNftProposalArgs = Pick<BuyNftProposalArgs, 'nftId' | 'maxPrice' | 'description'>
 
 describe('CollectorDao', () => {
   async function deployCollectorDaoFixture() {
@@ -26,21 +26,36 @@ describe('CollectorDao', () => {
     const NftMarketplace = await ethers.getContractFactory('MockNftMarketplace')
     const nftMarketplace = await NftMarketplace.deploy()
 
-    const createBuyNftProposal = ({ nftId, price, description }: CreateBuyNftProposalArgs) => {
+    const FailMarketplace = await ethers.getContractFactory('FailNftMarketplace')
+    const failMarketplace = await FailMarketplace.deploy()
+
+    const createBuyNftProposal = ({ nftId, maxPrice, description }: CreateBuyNftProposalArgs) => {
       const toReturn = buildBuyNftProposal({
         daoContract: collectorDao,
         marketplaceAddress: nftMarketplace.address,
         nftContract: nftMarketplace.address,
         nftId,
         description,
-        price,
+        maxPrice,
       })
 
       const proposalId = computeProposalId(toReturn.callPayload)
       return { ...toReturn, proposalId }
     }
 
-    return { collectorDao, nftMarketplace, owner, alice, bob, charles, others, member1, member2, createBuyNftProposal }
+    return {
+      collectorDao,
+      nftMarketplace,
+      failMarketplace,
+      owner,
+      alice,
+      bob,
+      charles,
+      others,
+      member1,
+      member2,
+      createBuyNftProposal,
+    }
   }
 
   async function setupProposalFixture() {
@@ -66,7 +81,7 @@ describe('CollectorDao', () => {
     const buyNftProposal = createBuyNftProposal({
       nftId: 0,
       description: 'Buy NFT #0',
-      price: ethers.utils.parseEther('0.1'),
+      maxPrice: ethers.utils.parseEther('0.1'),
     })
     await collectorDao.connect(alice).propose(...buyNftProposal.proposalPayload)
 
@@ -137,7 +152,7 @@ describe('CollectorDao', () => {
       const { proposalPayload, callPayload } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #0',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       await collectorDao.connect(alice).propose(...proposalPayload)
 
@@ -167,12 +182,12 @@ describe('CollectorDao', () => {
       const { proposalPayload: pp1, callPayload: cp1 } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #0',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       const { proposalPayload: pp2, callPayload: cp2 } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #1',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       await collectorDao.connect(alice).propose(...pp1)
       await collectorDao.connect(alice).propose(...pp2)
@@ -195,7 +210,7 @@ describe('CollectorDao', () => {
       const { proposalPayload } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #0',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       const promise = collectorDao.connect(alice).propose(...proposalPayload)
 
@@ -228,7 +243,7 @@ describe('CollectorDao', () => {
       const { proposalPayload } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #0',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       proposalPayload[1].push(1234) // Add a random argument to one of the proposal arrays, mistmatching their sizes
       const promise = collectorDao.connect(alice).propose(...proposalPayload)
@@ -248,7 +263,7 @@ describe('CollectorDao', () => {
       const { proposalPayload } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #0',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       proposalPayload[2].push('0x1234') // Add a random argument to one of the proposal arrays, mistmatching their sizes
       const promise = collectorDao.connect(alice).propose(...proposalPayload)
@@ -268,7 +283,7 @@ describe('CollectorDao', () => {
       const { proposalPayload, callPayload } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #0',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       await collectorDao.connect(alice).propose(...proposalPayload)
       const promise = collectorDao.connect(alice).propose(...proposalPayload)
@@ -290,7 +305,7 @@ describe('CollectorDao', () => {
       const { proposalPayload, callPayload } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #0',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       const tx = await collectorDao.connect(alice).propose(...proposalPayload)
 
@@ -326,7 +341,7 @@ describe('CollectorDao', () => {
       const { proposalPayload, callPayload } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #0',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       await collectorDao.connect(alice).propose(...proposalPayload)
 
@@ -344,7 +359,7 @@ describe('CollectorDao', () => {
       const { proposalPayload: pp1, callPayload: cp1 } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #0',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       await collectorDao.connect(alice).propose(...pp1)
       const proposal1Id = computeProposalId(cp1)
@@ -358,7 +373,7 @@ describe('CollectorDao', () => {
       const { proposalPayload: pp2, callPayload: cp2 } = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #1',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       await collectorDao.connect(alice).propose(...pp2)
       const proposal2Id = computeProposalId(cp2)
@@ -421,7 +436,7 @@ describe('CollectorDao', () => {
       const { proposalPayload, callPayload } = createBuyNftProposal({
         nftId: 1,
         description: 'Buy NFT #1',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       await collectorDao.connect(bob).propose(...proposalPayload)
       const proposalId2 = computeProposalId(callPayload)
@@ -507,7 +522,7 @@ describe('CollectorDao', () => {
       const { proposalId, proposalPayload } = createBuyNftProposal({
         nftId: 1,
         description: 'Buy NFT #1',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
       await collectorDao.connect(alice).propose(...proposalPayload)
       await collectorDao.connect(charles).purchaseMembership({ value: ethers.utils.parseEther('1') })
@@ -714,7 +729,7 @@ describe('CollectorDao', () => {
         const { proposalId: proposalId1 } = buyNftProposal
         const { proposalPayload, proposalId: proposalId2 } = createBuyNftProposal({
           nftId: 1,
-          price: ethers.utils.parseEther('0.1'),
+          maxPrice: ethers.utils.parseEther('0.1'),
           description: 'Buy NFT 2',
         })
         await collectorDao.connect(bob).propose(...proposalPayload)
@@ -806,7 +821,7 @@ describe('CollectorDao', () => {
           createBuyNftProposal({
             nftId: 1,
             description: 'Buy NFT #1',
-            price: ethers.utils.parseEther('0.1'),
+            maxPrice: ethers.utils.parseEther('0.1'),
           }),
         ],
         'Multiple NFTs',
@@ -840,7 +855,7 @@ describe('CollectorDao', () => {
       const proposal = createBuyNftProposal({
         nftId: 1,
         description: 'Buy NFT #1',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
 
       // Act
@@ -893,7 +908,7 @@ describe('CollectorDao', () => {
       const buyNftNewProposal = createBuyNftProposal({
         nftId: 0,
         description: 'Buy NFT #0 - New Proposal',
-        price: ethers.utils.parseEther('0.1'),
+        maxPrice: ethers.utils.parseEther('0.1'),
       })
 
       await collectorDao.connect(bob).propose(...buyNftNewProposal.proposalPayload)
@@ -962,7 +977,7 @@ describe('CollectorDao', () => {
           createBuyNftProposal({
             nftId: 1,
             description: 'fail proposal',
-            price: ethers.utils.parseEther('0.01'),
+            maxPrice: ethers.utils.parseEther('0.01'),
           }),
         ],
         'Merged Proposal',
@@ -1010,6 +1025,30 @@ describe('CollectorDao', () => {
       await expect(promise).to.be.revertedWithCustomError(collectorDao, 'Unauthorized')
     })
 
+    it('should reject non-successful NFT Purchases', async () => {
+      // Arrange
+      const { collectorDao, bob, charles, failMarketplace } = await loadFixture(setupProposalFixture)
+      const proposal = buildBuyNftProposal({
+        daoContract: collectorDao,
+        marketplaceAddress: failMarketplace.address,
+        nftContract: failMarketplace.address,
+        nftId: 0,
+        description: 'Buy NFT #0',
+        maxPrice: ethers.utils.parseEther('0.1'),
+      })
+      await collectorDao.connect(bob).propose(...proposal.proposalPayload)
+
+      const proposalId = computeProposalId(proposal.callPayload)
+      await collectorDao.connect(bob).castVote(proposalId, true)
+      await timeTravel(SEVEN_DAYS_IN_SECONDS + 1)
+
+      // Act
+      const promise = collectorDao.connect(charles).execute(...proposal.callPayload)
+
+      // Expect
+      await expect(promise).to.be.revertedWithCustomError(collectorDao, 'ProposalExecutionFailed')
+    })
+
     describe('Execution reward', () => {
       it('should provide execution reward of 0.01 ETH if proposal is successful and balance after execution is >= 5 ETH', async () => {
         // Arrange
@@ -1020,15 +1059,24 @@ describe('CollectorDao', () => {
 
         // Act
         const charlesBalanceBefore = await charles.getBalance()
-        const receipt = await collectorDao
+        const executionReceipt = await collectorDao
           .connect(charles)
           .execute(...buyNftProposal.callPayload)
+          .then((tx) => tx.wait())
+        const claimReceipt = await collectorDao
+          .connect(charles)
+          .claimExecutionRewards()
           .then((tx) => tx.wait())
         const charlesBalanceAfter = await charles.getBalance()
 
         // Assert
-        const gasCosts = receipt.gasUsed.mul(receipt.effectiveGasPrice)
-        const ethReceivedForExecution = charlesBalanceAfter.sub(charlesBalanceBefore).add(gasCosts)
+        const executionCosts = executionReceipt.gasUsed.mul(executionReceipt.effectiveGasPrice)
+        const claimCosts = claimReceipt.gasUsed.mul(claimReceipt.effectiveGasPrice)
+        const ethReceivedForExecution = charlesBalanceAfter
+          .sub(charlesBalanceBefore)
+          .add(executionCosts)
+          .add(claimCosts)
+
         expect(ethReceivedForExecution).to.equal(ethers.utils.parseEther('0.01'))
       })
 
@@ -1042,13 +1090,14 @@ describe('CollectorDao', () => {
         const executor = await Executor.deploy(collectorDao.address)
 
         // Act
-        const promise = executor.connect(charles).execute(...buyNftProposal.callPayload)
+        await executor.connect(charles).execute(...buyNftProposal.callPayload)
+        const promise = executor.connect(charles).claimExecutionRewards()
 
         // Assert
         await expect(promise).to.be.revertedWithCustomError(collectorDao, 'ExecutionRewardTransferFailed')
       })
 
-      it('should not provide execution reward if proposal is successful and balance after execution is < 5 ETH', async () => {
+      it('should not provide execution reward if proposal is successful and balance at claiming time is < 5 ETH', async () => {
         // Arrange
         const { buyNftProposal, collectorDao, bob, charles } = await loadFixture(setupProposalFixture)
         await bob.sendTransaction({ to: collectorDao.address, value: ethers.utils.parseEther('1') })
@@ -1058,17 +1107,25 @@ describe('CollectorDao', () => {
 
         // Act
         const charlesBalanceBefore = await charles.getBalance()
-        const receipt = await collectorDao
+        const executionReceipt = await collectorDao
           .connect(charles)
           .execute(...buyNftProposal.callPayload)
           .then((tx) => tx.wait())
+
+        const promise = collectorDao.connect(charles).claimExecutionRewards()
         const charlesBalanceAfter = await charles.getBalance()
 
         // Assert
-        expect(daoBalanceBefore).to.equal(ethers.utils.parseEther('5'))
-        const gasCosts = receipt.gasUsed.mul(receipt.effectiveGasPrice)
+        await expect(promise).to.be.revertedWithCustomError(collectorDao, 'InsufficientBalanceForReward') // claim reverts
+        expect(daoBalanceBefore).to.equal(ethers.utils.parseEther('5')) // Dao balance is unchanged
+
+        // No execution reward is given to charles
+        const gasCosts = executionReceipt.gasUsed.mul(executionReceipt.effectiveGasPrice)
         const ethReceivedForExecution = charlesBalanceAfter.sub(charlesBalanceBefore).add(gasCosts)
-        expect(ethReceivedForExecution).to.equal(0)
+        expect(ethReceivedForExecution).to.be.closeTo(0, ethers.utils.parseEther('0.001'))
+
+        // Charles is still owed a reward when the dao balance is sufficient
+        expect(await collectorDao.owedExecutionRewards(charles.address)).to.equal(ethers.utils.parseEther('0.01'))
       })
 
       it('should not provide execution reward if execution reverts', async () => {
@@ -1081,7 +1138,7 @@ describe('CollectorDao', () => {
             createBuyNftProposal({
               nftId: 1,
               description: 'fail proposal',
-              price: ethers.utils.parseEther('0.01'),
+              maxPrice: ethers.utils.parseEther('0.01'),
             }),
             buyNftProposal,
           ],
@@ -1105,6 +1162,19 @@ describe('CollectorDao', () => {
 
         const ethReceivedForExecution = charlesBalanceAfter.sub(charlesBalanceBefore)
         expect(ethReceivedForExecution).to.equal(0)
+
+        expect(await collectorDao.owedExecutionRewards(charles.address)).to.equal(0)
+      })
+
+      it('should revert if executor tries to claim rewards without executing a proposal', async () => {
+        // Arrange
+        const { collectorDao, charles } = await loadFixture(setupProposalFixture)
+
+        // Act
+        const promise = collectorDao.connect(charles).claimExecutionRewards()
+
+        // Assert
+        await expect(promise).to.be.revertedWithCustomError(collectorDao, 'NoRewardsToClaim').withArgs(charles.address)
       })
     })
 
@@ -1135,7 +1205,7 @@ describe('CollectorDao', () => {
         const newProposal = createBuyNftProposal({
           nftId: 1,
           description: 'Buy NFT #1',
-          price: ethers.utils.parseEther('0.1'),
+          maxPrice: ethers.utils.parseEther('0.1'),
         })
         const proposalId = computeProposalId(newProposal.callPayload)
         await collectorDao.connect(alice).propose(...newProposal.proposalPayload)

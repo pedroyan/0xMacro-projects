@@ -30,7 +30,7 @@ You are writing a contract for Collector DAO, a DAO that aims to collect NFTs. T
 - Incentivizes positive interactions with the DAO's proposals, by:
   - Incentivizing rapid execution of successfully passed proposals by offering a 0.01 ETH execution reward, provided by the DAO contract, to the address that executes the proposal.
   - In cases where the DAO contract has **less than a 5 ETH balance, execution rewards should be skipped.**
-  - Execution rewards will be skipped if after the execution of the proposal the balance is less than 5 ETH. (We can go either way here, so I picked this path. [source](https://discord.com/channels/870313767873962014/1066044058109222942/1067579790208536757))
+  - Balance check will be performed at claim time. ([source](https://discord.com/channels/870313767873962014/1066044058109222942/1073177949525786675))
 
 ### Implementation Requirements
 

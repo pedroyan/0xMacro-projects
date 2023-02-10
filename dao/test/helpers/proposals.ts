@@ -8,7 +8,7 @@ export type BuyNftProposalArgs = {
   marketplaceAddress: string
   nftContract: string
   nftId: number
-  price: BigNumberish
+  maxPrice: BigNumberish
   description: string
 }
 
@@ -24,21 +24,21 @@ export const buildBuyNftProposal = ({
   marketplaceAddress,
   nftContract,
   nftId,
-  price,
+  maxPrice,
   description,
 }: BuyNftProposalArgs): ProposalData => {
   const buyNftCalldata = daoContract.interface.encodeFunctionData('buyNFTFromMarketplace', [
     marketplaceAddress,
     nftContract,
     nftId,
-    price,
+    maxPrice,
   ])
 
   const descriptionHash = ethers.utils.id(description)
 
   return {
-    proposalPayload: [[daoContract.address], [price], [buyNftCalldata], description],
-    callPayload: [[daoContract.address], [price], [buyNftCalldata], descriptionHash],
+    proposalPayload: [[daoContract.address], [0], [buyNftCalldata], description],
+    callPayload: [[daoContract.address], [0], [buyNftCalldata], descriptionHash],
   }
 }
 

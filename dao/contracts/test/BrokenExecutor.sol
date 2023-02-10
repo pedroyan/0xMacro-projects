@@ -19,6 +19,10 @@ contract BrokenExecutor {
 		dao.execute(targets, values, calldatas, descriptionHash);
 	}
 
+	function claimExecutionRewards() external {
+		dao.claimExecutionRewards();
+	}
+
 	receive() external payable {
 		revert('BrokenExecutor: no funds accepted');
 	}

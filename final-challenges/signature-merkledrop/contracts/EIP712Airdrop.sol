@@ -4,6 +4,11 @@ pragma solidity ^0.8.9;
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 
+/**
+ * @title EIP712Airdrop
+ * @author Pedro Yan
+ * @notice A contract for EIP-712 signatures logic of the MACRO airdrop.
+ */
 abstract contract EIP712Airdrop is Ownable {
 	/// @notice the EIP712 domain separator for claiming MACRO
 	bytes32 public immutable EIP712_DOMAIN;
@@ -32,14 +37,35 @@ abstract contract EIP712Airdrop is Ownable {
 		bytes32 s;
 	}
 
+	/**
+	 * @notice Emitted when `isECDSADisabled` is disabled by the owner.
+	 * @param owner The owner of the contract.
+	 */
 	event ECDSADisabled(address owner);
 
+	/**
+	 * @notice Thrown when a claimer attempts to claim MACRO tokens using a signature, but the `Airdrop.isECDSADisabled` flag
+	 * is disabled.
+	 */
 	error SignatureClaimsDisabled();
 
+	/**
+	 * @notice Thrown when a claimer attempts to claim MACRO tokens using a signature, but the signature is invalid.
+	 */
 	error InvalidSignature();
 
+	/**
+	 * @notice Thrown when a claimer attempts to claim MACRO tokens using a signature, but the claimer is not the
+	 * in the signature is not the msg.sender.
+	 * @param expectedClaimant The address which is expected to be the msg.sender.
+	 * @param actualClaimant The address which is actually the msg.sender.
+	 */
 	error InvalidClaimant(address expectedClaimant, address actualClaimant);
 
+	/**
+	 * @notice Constructs the EIP712Airdrop contract.
+	 * @param _signer The address whose private key will create all the signatures which claimers can use to claim their airdropped tokens
+	 */
 	constructor(address _signer) {
 		EIP712_DOMAIN = keccak256(
 			abi.encode(
@@ -64,6 +90,12 @@ abstract contract EIP712Airdrop is Ownable {
 		emit ECDSADisabled(msg.sender);
 	}
 
+	/**
+	 * @notice Validates a signed claim, and returns the claimer and amount to be claimed.
+	 * @param _claim The signed claim struct
+	 * @return address The address which will claim the MACRO tokens.
+	 * @return uint256 The amount of MACRO to be claimed.
+	 */
 	function _validateSignedClaim(SignedClaim calldata _claim) internal view returns (address, uint256) {
 		// Ensure ECDSA Signatures are enabled
 		if (isECDSADisabled) revert SignatureClaimsDisabled();
